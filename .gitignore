@@ -1,0 +1,6 @@
+.env
+*.crt
+*.pem
+*.csv
+.venv
+plugin/*

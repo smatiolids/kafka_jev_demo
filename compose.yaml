@@ -1,0 +1,38 @@
+name: kafka-jev-confluent_platform
+
+# Runs only Kafka Connect with the Jev connector, against an existing Kafka cluster.
+# Fill in the CHANGE_ME values in config/ before starting. See README.md.
+
+services:
+  connect:
+    image: ${CONNECT_IMAGE:-kafka-jev-connect:local}
+    build:
+      context: .
+    hostname: connect
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECTOR_NAME: ${CONNECTOR_NAME:-jev-confluent_platform}
+      # Kafka credentials from .env, referenced as ${env:...} in config/.
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:?Set KAFKA_BOOTSTRAP_SERVERS in .env}
+      KAFKA_API_KEY: ${KAFKA_API_KEY:?Set KAFKA_API_KEY in .env}
+      KAFKA_API_SECRET: ${KAFKA_API_SECRET:?Set KAFKA_API_SECRET in .env}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:?Set TYPESAFE_API_KEY in .env}
+      # Topics must already exist; the connector does not create them. CREATE_TOPICS
+      # (comma-separated) creates them at startup, but only on a PLAINTEXT cluster
+      # reachable at BOOTSTRAP_SERVERS.
+      BOOTSTRAP_SERVERS: ${BOOTSTRAP_SERVERS:-}
+      CREATE_TOPICS: ${CREATE_TOPICS:-}
+    volumes:
+      # Relative paths resolve against this folder.
+      - ${CONNECT_WORKER_CONFIG_FILE:-./config/connect-distributed.properties}:/etc/kafka-jev/connect-distributed.properties:ro
+      - ${CONNECTOR_CONFIG_FILE:-./config/connector.json}:/etc/kafka-jev/connector.json:ro
+      # Private CA of the Kafka cluster. Remove for clusters with publicly trusted certificates.
+      - ${KAFKA_CA_FILE:-./kafka-ca.crt}:/etc/kafka-jev/kafka-ca.crt:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://localhost:8083/connectors/$${CONNECTOR_NAME}/status | grep -q '\"connector\":{\"state\":\"RUNNING\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
