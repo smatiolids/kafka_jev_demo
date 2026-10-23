@@ -37,13 +37,11 @@ Com estes atributos, especialmente o baixo custo e baixa latência, o JEV se tor
 
 Indo direto ao ponto, o Kafka-JEV-Connector consome mensagens de tópicos determinados, monta um contexto baseado no payload das mensagens e submete ao JEV, que retorna ao conector. Este resultado é então encaminhado aos tópicos de saída, assim como a tópico DLQ em caso de falhas. O tópico destino pode ser um específco, como pode ser determinado pelo JEV, ou seja, o JEV age como um roteador de mensagens.
 
-O conector é open source e está disponível no repositório [kafka-jev-connector](https://github.com/smatiolids/kafka-jev-connector).
-
-## Como Funciona
-
 ![Arquitetura do Kafka-JEV-Connector entre o tópico de entrada, a API JEV, os tópicos de saída e a DLQ](images/architecture-overview.svg)
 
 *Visão simplificada do fluxo entre a origem, o modelo e os tópicos de destino.*
+
+O conector é open source e está disponível no repositório [kafka-jev-connector](https://github.com/smatiolids/kafka-jev-connector).
 
 ## Mão na massa
 
