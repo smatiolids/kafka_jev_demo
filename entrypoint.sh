@@ -1,6 +1,6 @@
 #!/bin/sh
 # Starts a distributed Kafka Connect worker with the Jev plugin from /opt/kafka/plugins
-# and registers the connector from /etc/kafka-jev/connector.json.
+# and registers one or more connector configurations.
 set -eu
 
 WORKER_CONFIG=/etc/kafka-jev/connect-distributed.properties
@@ -49,17 +49,42 @@ until curl --fail --silent "$REST_URL/connector-plugins" >/dev/null; do
   sleep 2
 done
 
-# PUT creates the connector or updates it, so edits to connector.json apply on restart.
-echo "Registering connector $CONNECTOR_NAME"
-until curl --fail --silent --show-error -X PUT -H 'Content-Type: application/json' \
-    --data @"$CONNECTOR_CONFIG" "$REST_URL/connectors/$CONNECTOR_NAME/config"; do
-  if ! kill -0 "$WORKER_PID" 2>/dev/null; then
-    echo "Connect worker exited before the connector was registered" >&2
+register_connector() {
+  name=$1
+  config=$2
+  if [ ! -f "$config" ]; then
+    echo "Connector config does not exist: $config" >&2
     exit 1
   fi
-  echo "Registration failed; retrying in 5s" >&2
-  sleep 5
-done
-echo
+
+  # PUT creates the connector or updates it, so config edits apply on restart.
+  echo "Registering connector $name from $config"
+  until curl --fail --silent --show-error -X PUT -H 'Content-Type: application/json' \
+      --data @"$config" "$REST_URL/connectors/$name/config"; do
+    if ! kill -0 "$WORKER_PID" 2>/dev/null; then
+      echo "Connect worker exited before connector $name was registered" >&2
+      exit 1
+    fi
+    echo "Registration of $name failed; retrying in 5s" >&2
+    sleep 5
+  done
+  echo
+}
+
+# CONNECTORS is a comma-separated list of name:path pairs. When absent, retain
+# the original single-connector behavior.
+if [ -n "${CONNECTORS:-}" ]; then
+  for connector in $(echo "$CONNECTORS" | tr ',' ' '); do
+    name=${connector%%:*}
+    config=${connector#*:}
+    if [ "$name" = "$connector" ] || [ -z "$name" ] || [ -z "$config" ]; then
+      echo "Invalid CONNECTORS entry: $connector (expected name:path)" >&2
+      exit 1
+    fi
+    register_connector "$name" "$config"
+  done
+else
+  register_connector "$CONNECTOR_NAME" "$CONNECTOR_CONFIG"
+fi
 
 wait "$WORKER_PID"

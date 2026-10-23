@@ -1,6 +1,6 @@
 """Sends the rows of data/dataset*.csv to a Kafka topic, one JSON message per row.
 
-Usage: python send_message.py [--skip N] [--limit N] [--delay SECONDS]
+Usage: python helper/send_message.py [--skip N] [--limit N] [--delay SECONDS]
 """
 
 import argparse
@@ -39,9 +39,10 @@ parser.add_argument("--limit", type=int, default=None, help="send at most N rows
 parser.add_argument("--delay", type=float, default=0, help="seconds to wait between messages")
 args = parser.parse_args()
 
-files = sorted(Path(__file__).parent.glob("data/dataset*.csv"))
+data_dir = Path(__file__).resolve().parent.parent / "data"
+files = sorted(data_dir.glob("dataset*.csv"))
 if not files:
-    sys.exit("No data/dataset*.csv files found")
+    sys.exit(f"No dataset*.csv files found in {data_dir}")
 
 
 def rows():

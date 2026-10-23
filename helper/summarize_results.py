@@ -1,11 +1,12 @@
-"""Reads a Jev output topic from the beginning and summarizes latency, token usage and answers.
+"""Reads Jev output topics from the beginning and summarizes their records.
 
-Usage: python summarize_results.py [--topic messages_jev]
+Usage: python helper/summarize_results.py [--pattern '^messages_jev.*']
 """
 
 import argparse
 import json
 import os
+import re
 import statistics
 import sys
 import uuid
@@ -17,8 +18,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-parser = argparse.ArgumentParser(description="Summarize the Enriched Records in a Jev output topic.")
-parser.add_argument("--topic", default=os.getenv("KAFKA_OUTPUT_TOPIC", "messages_jev"), help="topic to read")
+parser = argparse.ArgumentParser(description="Summarize Enriched Records across Jev output topics.")
+parser.add_argument(
+    "--topic",
+    action="append",
+    dest="topics",
+    help="exact topic to read; repeat for multiple topics (overrides --pattern)",
+)
+parser.add_argument(
+    "--pattern",
+    default=os.getenv("KAFKA_OUTPUT_TOPIC_PATTERN", r"^messages_jev.*"),
+    help="Kafka topic regex (default: ^messages_jev.*)",
+)
+parser.add_argument(
+    "--count-topic",
+    action="append",
+    dest="count_topics",
+    help="additional topic to count without summarizing; repeat for multiple topics (default: messages)",
+)
 parser.add_argument(
     "--input-price",
     type=float,
@@ -26,6 +43,40 @@ parser.add_argument(
     help="USD per million input tokens (default: 0.042, the Jev decision model price; output tokens are free)",
 )
 args = parser.parse_args()
+configured_count_topics = os.getenv("KAFKA_COUNT_TOPICS", "messages")
+default_count_topics = [topic.strip() for topic in configured_count_topics.split(",") if topic.strip()]
+
+TOPIC_GROUPS = [
+    ("Input", {"messages"}),
+    ("Fixed", {"messages_jev"}),
+    (
+        "Choice",
+        {
+            "messages_jev_billing",
+            "messages_jev_technical_support",
+            "messages_jev_account_security",
+            "messages_jev_retention",
+            "messages_jev_general_support",
+        },
+    ),
+    ("Noul", {"messages_jev_to_human", "messages_jev_to_agent"}),
+    (
+        "Score level",
+        {
+            "messages_jev_dissatisfaction_0",
+            "messages_jev_dissatisfaction_1",
+            "messages_jev_dissatisfaction_2",
+            "messages_jev_dissatisfaction_3",
+        },
+    ),
+    ("Score value", {"messages_jev_urgent", "messages_jev_normal"}),
+    ("Dead letter", {"messages_jev_dlq"}),
+]
+
+try:
+    topic_pattern = re.compile(args.pattern)
+except re.error as error:
+    parser.error(f"invalid --pattern: {error}")
 
 config = {
     "bootstrap.servers": os.environ["KAFKA_BOOTSTRAP_SERVERS"],
@@ -56,21 +107,34 @@ def parse_time(value):
     return datetime.fromisoformat(value)
 
 
-def read_records(consumer):
-    """Yields every record currently in the topic, then stops."""
-    metadata = consumer.list_topics(args.topic, timeout=10).topics[args.topic]
-    if metadata.error:
-        sys.exit(f"Cannot read topic {args.topic}: {metadata.error}")
+def discover_topics(consumer):
+    """Return summary topics plus any additional count-only topics."""
+    metadata = consumer.list_topics(timeout=10).topics
+    summary_topics = args.topics or sorted(name for name in metadata if topic_pattern.match(name))
+    if not summary_topics:
+        sys.exit(f"No topics match {args.pattern}")
+    count_topics = args.count_topics or default_count_topics
+    topics = sorted(set(summary_topics) | set(count_topics))
+    for topic in topics:
+        if topic not in metadata:
+            sys.exit(f"Topic does not exist: {topic}")
+        if metadata[topic].error:
+            sys.exit(f"Cannot read topic {topic}: {metadata[topic].error}")
+    return topics, set(summary_topics), metadata
 
+
+def read_records(consumer, topics, metadata):
+    """Yields every record currently in the selected topics, then stops."""
     end_offsets = {}
-    for partition in metadata.partitions:
-        low, high = consumer.get_watermark_offsets(TopicPartition(args.topic, partition), timeout=10)
-        if high > low:
-            end_offsets[partition] = high
+    for topic in topics:
+        for partition in metadata[topic].partitions:
+            low, high = consumer.get_watermark_offsets(TopicPartition(topic, partition), timeout=10)
+            if high > low:
+                end_offsets[(topic, partition)] = high
     if not end_offsets:
         return
 
-    consumer.assign([TopicPartition(args.topic, p, OFFSET_BEGINNING) for p in end_offsets])
+    consumer.assign([TopicPartition(topic, partition, OFFSET_BEGINNING) for topic, partition in end_offsets])
     while end_offsets:
         message = consumer.poll(10)
         if message is None:
@@ -78,8 +142,9 @@ def read_records(consumer):
         if message.error():
             sys.exit(f"Read failed: {message.error()}")
         yield message
-        if message.offset() + 1 >= end_offsets.get(message.partition(), 0):
-            end_offsets.pop(message.partition(), None)
+        position = (message.topic(), message.partition())
+        if message.offset() + 1 >= end_offsets.get(position, 0):
+            end_offsets.pop(position, None)
 
 
 def percentile(values, p):
@@ -160,6 +225,7 @@ PRINTERS = {"choice": print_choice, "score": print_score, "noul": print_noul}
 
 records = 0
 skipped = 0
+events_by_topic = Counter()
 jev_ms = []
 end_to_end_ms = []
 attempts = Counter()
@@ -167,12 +233,20 @@ models = Counter()
 input_tokens = []
 output_tokens = []
 answers_by_question = Counter()
+answer_records = 0
 # Every answer object, grouped by question.
 answers = defaultdict(list)
 
 consumer = Consumer(config)
 try:
-    for message in read_records(consumer):
+    selected_topics, summary_topics, topic_metadata = discover_topics(consumer)
+    for topic in selected_topics:
+        events_by_topic[topic] = 0
+
+    for message in read_records(consumer, selected_topics, topic_metadata):
+        events_by_topic[message.topic()] += 1
+        if message.topic() not in summary_topics:
+            continue
         try:
             record = json.loads(message.value())
             evaluation = record["evaluation"]
@@ -194,19 +268,39 @@ try:
         usage = jev.get("usage", {})
         input_tokens.append(usage.get("input_tokens", 0))
         output_tokens.append(usage.get("output_tokens", 0))
-        for question, answer in jev.get("answers", {}).items():
-            answers_by_question[question] += 1
-            answers[question].append(answer)
+        if message.topic() == "messages_jev":
+            answer_records += 1
+            for question, answer in jev.get("answers", {}).items():
+                answers_by_question[question] += 1
+                answers[question].append(answer)
 finally:
     consumer.close()
 
+print("Events by topic group")
+grouped_topics = set()
+for group, configured_topics in TOPIC_GROUPS:
+    topics = [topic for topic in selected_topics if topic in configured_topics]
+    if not topics:
+        continue
+    grouped_topics.update(topics)
+    print(f"  {group} ({sum(events_by_topic[topic] for topic in topics):,})")
+    for topic in topics:
+        print(f"    {topic:<38} {events_by_topic[topic]:>8,}")
+other_topics = [topic for topic in selected_topics if topic not in grouped_topics]
+if other_topics:
+    print(f"  Other ({sum(events_by_topic[topic] for topic in other_topics):,})")
+    for topic in other_topics:
+        print(f"    {topic:<38} {events_by_topic[topic]:>8,}")
+print(f"  {'Total':<40} {sum(events_by_topic.values()):>8,}")
+print()
+
 if not records:
-    sys.exit(f"No Enriched Records in {args.topic}")
+    sys.exit("No Enriched Records found in the selected topics")
 
 total_input = sum(input_tokens)
 total_output = sum(output_tokens)
 
-print(f"Topic {args.topic}: {records} records" + (f" ({skipped} unreadable, skipped)" if skipped else ""))
+print(f"Enriched records summarized: {records}" + (f" ({skipped} unreadable events skipped)" if skipped else ""))
 print()
 print("Latency (ms)")
 print_latency_table({"Jev call": jev_ms, "End to end": end_to_end_ms})
@@ -226,11 +320,11 @@ print(f"  {'Per record':<22} ${cost / records:,.8f}")
 print(f"  {'Per 1,000 records':<22} ${cost / records * 1000:,.4f}")
 print(f"  {'Per 1 million records':<22} ${cost / records * 1_000_000:,.2f}")
 print()
-print(f"Questions answered: {sum(answers_by_question.values())}")
+print(f"Questions answered from messages_jev ({answer_records} records): {sum(answers_by_question.values())}")
 for question, count in answers_by_question.most_common():
     print(f"  {question:<26} {count}")
 print()
-print("Answer distribution")
+print("Answer distribution from messages_jev")
 for question, items in answers.items():
     kind = items[0].get("type", "unknown")
     print(f"  {question} ({kind}, {len(items)} answers)")

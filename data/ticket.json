@@ -1,0 +1,33 @@
+{
+      "key": "a9dde8b2-2d3e-4b9c-a0bb-cc14320631d4",
+      "partition": 0,
+      "offset": 845,
+      "timestamp": "2026-10-06T14:20:36.053Z",
+      "cancellation_risk": 0.73,
+      "answers": {
+        "requires_human": {
+          "noul": 0.78
+        },
+        "cancellation_risk": {
+          "noul": 0.73
+        },
+        "department": {
+          "choice": "technical_support",
+          "confidence": 0.63
+        },
+        "customer_intent": {
+          "choice": "request_action",
+          "confidence": 0.99
+        },
+        "urgency": {
+          "score": 1.8,
+          "confidence": 0.63
+        },
+        "customer_dissatisfaction": {
+          "score": 1.93,
+          "confidence": 0.93
+        }
+      },
+      "subject": "Solicitação de Devolução: Problema de Vazamento no Tanque de Tinta",
+      "body": "Prezado Atendimento ao Cliente,\n\nEstou escrevendo para solicitar a devolução da impressora Epson EcoTank ET-4760, que comprei recentemente em sua loja online. Infelizmente, durante a configuração inicial da impressora, experimentei um vazamento do tanque de tinta, causando considerável inconveniência.\n\nOs detalhes do produto são os seguintes:\n- Produto: Epson EcoTank ET-4760\n- Número do Pedido: <order_number>\n\nSegui todos os passos de solução de problemas descritos no manual, mas o problema persiste. Agradeceria uma assistência urgente para processar a devolução e receber uma substituição ou reembolso.\n\nPor favor, entre em contato comigo assim que possível em <tel_num>. Obrigado pela sua rápida atenção a este assunto.\n\nAtenciosamente,\n\n<name>"
+    }

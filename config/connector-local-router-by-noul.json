@@ -1,0 +1,19 @@
+{
+  "connector.class": "io.github.smatiolids.kafkajev.JevSinkConnector",
+  "tasks.max": "1",
+  "topics": "messages",
+  "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+  "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+  "value.converter.schemas.enable": "false",
+  "output.topic": "messages_jev_${answers.requires_human.noul > 0.8; \"to_human\", \"to_agent\"}",
+  "errors.deadletter.topic": "messages_jev_dlq",
+  "output.bootstrap.servers": "${env:KAFKA_BOOTSTRAP_SERVERS}",
+  "jev.api.key": "${env:TYPESAFE_API_KEY}",
+  "jev.endpoint": "https://api.typesafe.ai/v1/systemone",
+  "jev.model": "jev-latest",
+  "question.set.id": "message_classification/v1",
+  "jev.questions": "{\"requires_human\":{\"type\":\"noul\",\"instructions\":\"Does this ticket require human intervention?\",\"criteria\":{\"true\":\"The issue cannot be safely resolved by an automated response or requires a privileged action.\",\"false\":\"The issue can follow the normal automated flow.\"}},\"cancellation_risk\":{\"type\":\"noul\",\"instructions\":\"Does the customer show a concrete intention to cancel or abandon the service?\",\"criteria\":{\"true\":\"There is a threat, intention, or explicit request to cancel.\",\"false\":\"There is no concrete indication of cancellation.\"}},\"department\":{\"type\":\"choice\",\"instructions\":\"Which team should be primarily responsible for this ticket?\",\"criteria\":{\"billing\":\"Charges, payments, invoices, or refunds.\",\"technical_support\":\"Technical failures, access, or product functionality.\",\"account_security\":\"Locked account, credentials, fraud, or suspicious access.\",\"retention\":\"Cancellation, serious dissatisfaction, or risk of losing the customer.\",\"general_support\":\"Matters that do not clearly belong to the other teams.\"}},\"customer_intent\":{\"type\":\"choice\",\"instructions\":\"What is the main intent expressed by the customer?\",\"criteria\":{\"request_information\":\"Seeks information or clarification.\",\"report_problem\":\"Reports something that is not working.\",\"request_action\":\"Asks for a concrete action to be performed.\",\"complain\":\"Expresses dissatisfaction without a clear operational request.\",\"cancel_service\":\"Wants to end or cancel the service.\"}},\"urgency\":{\"type\":\"score\",\"instructions\":\"Rate the operational urgency of the ticket.\",\"criteria\":[\"Can wait for the normal flow.\",\"Should be handled this week.\",\"Should be handled today.\",\"Requires immediate attention to avoid significant impact.\"]},\"customer_dissatisfaction\":{\"type\":\"score\",\"instructions\":\"Rate the intensity of the dissatisfaction shown by the customer.\",\"criteria\":[\"No noticeable dissatisfaction.\",\"Mild or implicit dissatisfaction.\",\"Clear dissatisfaction.\",\"Severe dissatisfaction, with a threat of cancellation or escalation.\"]}}",
+  "state.mode": "TEMPLATE",
+  "state.template": "Ticket: ${key}\nSubject: ${value:/subject:-(no subject)}\nMessage: ${value:/body:-(no message)}",
+  "behavior.on.null.values": "IGNORE"
+}

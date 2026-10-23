@@ -3,4 +3,5 @@
 *.pem
 *.csv
 .venv
+__pycache__/
 plugin/*

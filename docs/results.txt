@@ -1,0 +1,99 @@
+Events by topic group
+  Input (4,000)
+    messages                                  4,000
+  Fixed (4,000)
+    messages_jev                              4,000
+  Choice (4,000)
+    messages_jev_account_security                 7
+    messages_jev_billing                        414
+    messages_jev_general_support                341
+    messages_jev_retention                        1
+    messages_jev_technical_support            3,237
+  Noul (4,000)
+    messages_jev_to_agent                     2,203
+    messages_jev_to_human                     1,797
+  Score level (4,000)
+    messages_jev_dissatisfaction_0              927
+    messages_jev_dissatisfaction_1            1,945
+    messages_jev_dissatisfaction_2            1,128
+    messages_jev_dissatisfaction_3                0
+  Score value (4,000)
+    messages_jev_normal                       2,427
+    messages_jev_urgent                       1,573
+  Dead letter (0)
+    messages_jev_dlq                              0
+  Total                                      24,000
+
+Enriched records summarized: 20000
+
+Latency (ms)
+                Jev call    End to end
+  avg                210       108,895
+  min                149           469
+  p50                201       108,941
+  p95                279       206,126
+  p99                329       216,716
+  max              1,518       223,260
+
+  Attempts per record: 1: 20000
+
+Token usage
+  Input                  total 20,002,245  avg     1000
+  Output                 total  3,737,920  avg      187
+  Total                  total 23,740,165  avg     1187
+
+Estimated cost (USD $0.042 per million input tokens, output free)
+  Total                  $0.8401
+  Per record             $0.00004200
+  Per 1,000 records      $0.0420
+  Per 1 million records  $42.00
+
+Questions answered from messages_jev (4000 records): 24000
+  requires_human             4000
+  cancellation_risk          4000
+  department                 4000
+  customer_intent            4000
+  urgency                    4000
+  customer_dissatisfaction   4000
+
+Answer distribution from messages_jev
+  requires_human (noul, 4000 answers)
+    avg 0.74, true (>= 0.5) in 3604 of 4000 (90.1%)
+    0.00 - 0.25                                  17    0.4%  
+    0.25 - 0.50                                 379    9.5%  ###
+    0.50 - 0.75                                1293   32.3%  ##########
+    0.75 - 1.00                                2311   57.8%  #################
+  cancellation_risk (noul, 4000 answers)
+    avg 0.04, true (>= 0.5) in 62 of 4000 (1.6%)
+    0.00 - 0.25                                3894   97.4%  #############################
+    0.25 - 0.50                                  44    1.1%  
+    0.50 - 0.75                                  51    1.3%  
+    0.75 - 1.00                                  11    0.3%  
+  department (choice, 4000 answers)
+    avg confidence 0.93
+    technical_support                          3237   80.9%  ########################
+    billing                                     415   10.4%  ###
+    general_support                             340    8.5%  ###
+    account_security                              8    0.2%  
+    retention                                     0    0.0%  
+  customer_intent (choice, 4000 answers)
+    avg confidence 0.78
+    report_problem                             2101   52.5%  ################
+    request_action                             1275   31.9%  ##########
+    request_information                         622   15.6%  #####
+    complain                                      2    0.1%  
+    cancel_service                                0    0.0%  
+  urgency (score, 4000 answers)
+    avg score 1.60, avg confidence 0.72  (scores rounded to the nearest level)
+    0 Can wait for the normal flow.             756   18.9%  ######
+    1 Should be handled this week.             1265   31.6%  #########
+    2 Should be handled today.                  786   19.7%  ######
+    3 Requires immediate attention to avoid    1193   29.8%  #########
+  customer_dissatisfaction (score, 4000 answers)
+    avg score 1.04, avg confidence 0.77  (scores rounded to the nearest level)
+    0 No noticeable dissatisfaction.            917   22.9%  #######
+    1 Mild or implicit dissatisfaction.        2007   50.2%  ###############
+    2 Clear dissatisfaction.                   1076   26.9%  ########
+    3 Severe dissatisfaction, with a threat       0    0.0%  
+
+Models: jev-1.14.0 (20000)
