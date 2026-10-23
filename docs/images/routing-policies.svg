@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Kafka JEV connector routing policies</title>
+  <desc id="desc">Four panels compare fixed topic, Choice, Noul or Score threshold, and Score level routing.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f8fafc"/><stop offset="1" stop-color="#eef2ff"/></linearGradient>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="130%"><feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#64748b" flood-opacity=".18"/></filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0 0L0 6L9 3z" fill="#4f46e5"/></marker>
+  </defs>
+  <rect width="1200" height="760" rx="28" fill="url(#bg)"/>
+  <text x="60" y="66" fill="#0f172a" font-family="Inter,Arial,sans-serif" font-size="28" font-weight="700">One connector, four routing policies</text>
+  <text x="60" y="96" fill="#64748b" font-family="Inter,Arial,sans-serif" font-size="16">Each evaluation selects exactly one destination topic</text>
+
+  <g filter="url(#shadow)">
+    <rect x="55" y="135" width="520" height="245" rx="24" fill="#fff" stroke="#bfdbfe" stroke-width="2"/>
+    <rect x="55" y="135" width="520" height="54" rx="24" fill="#dbeafe"/>
+    <path d="M55 165h520" stroke="#dbeafe" stroke-width="50"/>
+    <text x="84" y="170" fill="#1e3a8a" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">1 · FIXED TOPIC</text>
+    <rect x="85" y="226" width="165" height="64" rx="14" fill="#eff6ff"/>
+    <text x="168" y="252" text-anchor="middle" fill="#475569" font-family="Inter,Arial,sans-serif" font-size="13">any answer</text>
+    <text x="168" y="275" text-anchor="middle" fill="#1e3a8a" font-family="ui-monospace,monospace" font-size="15">result</text>
+    <path d="M260 258H344" stroke="#4f46e5" stroke-width="4" marker-end="url(#arrow)"/>
+    <rect x="360" y="226" width="180" height="64" rx="14" fill="#dbeafe"/>
+    <text x="450" y="265" text-anchor="middle" fill="#1e3a8a" font-family="ui-monospace,monospace" font-size="15">messages_jev</text>
+    <text x="85" y="334" fill="#64748b" font-family="ui-monospace,monospace" font-size="13">output.topic = "messages_jev"</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="625" y="135" width="520" height="245" rx="24" fill="#fff" stroke="#99f6e4" stroke-width="2"/>
+    <rect x="625" y="135" width="520" height="54" rx="24" fill="#ccfbf1"/>
+    <path d="M625 165h520" stroke="#ccfbf1" stroke-width="50"/>
+    <text x="654" y="170" fill="#115e59" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">2 · CHOICE</text>
+    <rect x="655" y="216" width="158" height="84" rx="14" fill="#f0fdfa"/>
+    <text x="734" y="246" text-anchor="middle" fill="#475569" font-family="Inter,Arial,sans-serif" font-size="13">department</text>
+    <text x="734" y="274" text-anchor="middle" fill="#115e59" font-family="ui-monospace,monospace" font-size="14">billing</text>
+    <path d="M823 258H894" stroke="#4f46e5" stroke-width="4" marker-end="url(#arrow)"/>
+    <rect x="910" y="216" width="205" height="84" rx="14" fill="#ccfbf1"/>
+    <text x="1012" y="248" text-anchor="middle" fill="#115e59" font-family="ui-monospace,monospace" font-size="14">messages_jev_</text>
+    <text x="1012" y="274" text-anchor="middle" fill="#115e59" font-family="ui-monospace,monospace" font-size="14">billing</text>
+    <text x="655" y="334" fill="#64748b" font-family="ui-monospace,monospace" font-size="13">${answers.department.choice}</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="55" y="430" width="520" height="265" rx="24" fill="#fff" stroke="#fde68a" stroke-width="2"/>
+    <rect x="55" y="430" width="520" height="54" rx="24" fill="#fef3c7"/>
+    <path d="M55 460h520" stroke="#fef3c7" stroke-width="50"/>
+    <text x="84" y="465" fill="#92400e" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">3 · NOUL / SCORE THRESHOLD</text>
+    <rect x="85" y="516" width="180" height="86" rx="14" fill="#fffbeb"/>
+    <text x="175" y="547" text-anchor="middle" fill="#475569" font-family="Inter,Arial,sans-serif" font-size="13">requires_human</text>
+    <text x="175" y="576" text-anchor="middle" fill="#92400e" font-family="ui-monospace,monospace" font-size="15">0.87 &gt; 0.8</text>
+    <path d="M275 558H350" stroke="#4f46e5" stroke-width="4" marker-end="url(#arrow)"/>
+    <rect x="366" y="516" width="180" height="86" rx="14" fill="#fef3c7"/>
+    <text x="456" y="548" text-anchor="middle" fill="#92400e" font-family="ui-monospace,monospace" font-size="14">messages_jev_</text>
+    <text x="456" y="575" text-anchor="middle" fill="#92400e" font-family="ui-monospace,monospace" font-size="14">to_human</text>
+    <text x="85" y="649" fill="#64748b" font-family="ui-monospace,monospace" font-size="13">noul &gt; 0.8; "to_human", "to_agent"</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="625" y="430" width="520" height="265" rx="24" fill="#fff" stroke="#ddd6fe" stroke-width="2"/>
+    <rect x="625" y="430" width="520" height="54" rx="24" fill="#ede9fe"/>
+    <path d="M625 460h520" stroke="#ede9fe" stroke-width="50"/>
+    <text x="654" y="465" fill="#5b21b6" font-family="Inter,Arial,sans-serif" font-size="19" font-weight="700">4 · SCORE LEVEL</text>
+    <rect x="655" y="516" width="180" height="86" rx="14" fill="#faf5ff"/>
+    <text x="745" y="547" text-anchor="middle" fill="#475569" font-family="Inter,Arial,sans-serif" font-size="13">dissatisfaction</text>
+    <text x="745" y="576" text-anchor="middle" fill="#5b21b6" font-family="ui-monospace,monospace" font-size="15">level = 2</text>
+    <path d="M845 558H906" stroke="#4f46e5" stroke-width="4" marker-end="url(#arrow)"/>
+    <rect x="922" y="506" width="193" height="106" rx="14" fill="#ede9fe"/>
+    <text x="1018" y="540" text-anchor="middle" fill="#5b21b6" font-family="ui-monospace,monospace" font-size="13">messages_jev_</text>
+    <text x="1018" y="565" text-anchor="middle" fill="#5b21b6" font-family="ui-monospace,monospace" font-size="13">dissatisfaction_2</text>
+    <text x="655" y="649" fill="#64748b" font-family="ui-monospace,monospace" font-size="13">${answers.customer_dissatisfaction.level}</text>
+  </g>
+</svg>

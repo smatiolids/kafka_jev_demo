@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" role="img" aria-labelledby="title desc">
+  <title id="title">Kafka JEV connector architecture</title>
+  <desc id="desc">Support tickets flow from a CSV file into Kafka, through the JEV connector and JEV API, then to routed output topics or a dead-letter topic.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#081a36"/>
+      <stop offset="1" stop-color="#132a55"/>
+    </linearGradient>
+    <linearGradient id="connector" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#4f46e5"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity=".35"/>
+    </filter>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#67e8f9"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#fbbf24"/>
+    </marker>
+  </defs>
+  <rect width="1200" height="675" rx="28" fill="url(#bg)"/>
+  <g opacity=".16" stroke="#93c5fd">
+    <path d="M0 100H1200M0 200H1200M0 300H1200M0 400H1200M0 500H1200M0 600H1200"/>
+    <path d="M100 0V675M200 0V675M300 0V675M400 0V675M500 0V675M600 0V675M700 0V675M800 0V675M900 0V675M1000 0V675M1100 0V675"/>
+  </g>
+  <text x="60" y="66" fill="#f8fafc" font-family="Inter,Arial,sans-serif" font-size="28" font-weight="700">Real-time decision pipeline</text>
+  <text x="60" y="96" fill="#a5b4fc" font-family="Inter,Arial,sans-serif" font-size="16">Kafka events become structured decisions and routing actions</text>
+
+  <g filter="url(#shadow)">
+    <rect x="55" y="260" width="170" height="116" rx="20" fill="#f8fafc"/>
+    <rect x="83" y="285" width="48" height="62" rx="5" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+    <path d="M94 301h26M94 313h26M94 325h26" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+    <text x="151" y="307" fill="#0f172a" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700">CSV</text>
+    <text x="151" y="333" fill="#475569" font-family="Inter,Arial,sans-serif" font-size="15">4,000 tickets</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="280" y="260" width="180" height="116" rx="20" fill="#0f766e"/>
+    <circle cx="320" cy="318" r="22" fill="#5eead4" opacity=".25"/>
+    <path d="M306 318h28M320 304v28" stroke="#ccfbf1" stroke-width="4" stroke-linecap="round"/>
+    <text x="354" y="307" fill="#f0fdfa" font-family="Inter,Arial,sans-serif" font-size="17" font-weight="700">Kafka topic</text>
+    <text x="354" y="335" fill="#99f6e4" font-family="ui-monospace,monospace" font-size="16">messages</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="520" y="220" width="255" height="196" rx="28" fill="url(#connector)" stroke="#93c5fd" stroke-width="2"/>
+    <circle cx="648" cy="278" r="28" fill="#dbeafe" opacity=".2"/>
+    <path d="M627 278h42M648 257v42" stroke="#e0f2fe" stroke-width="5" stroke-linecap="round"/>
+    <text x="648" y="332" text-anchor="middle" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="21" font-weight="700">Kafka-JEV-Connector</text>
+    <text x="648" y="362" text-anchor="middle" fill="#dbeafe" font-family="Inter,Arial,sans-serif" font-size="15">State • Questions • Routing</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="550" y="100" width="195" height="82" rx="20" fill="#312e81" stroke="#818cf8" stroke-width="2"/>
+    <text x="648" y="134" text-anchor="middle" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="18" font-weight="700">JEV API</text>
+    <text x="648" y="158" text-anchor="middle" fill="#c7d2fe" font-family="Inter,Arial,sans-serif" font-size="14">Structured answers</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="850" y="160" width="292" height="318" rx="24" fill="#f8fafc"/>
+    <text x="886" y="204" fill="#0f172a" font-family="Inter,Arial,sans-serif" font-size="20" font-weight="700">Output topics</text>
+    <g font-family="ui-monospace,monospace" font-size="14">
+      <rect x="886" y="230" width="220" height="42" rx="10" fill="#dbeafe"/><text x="904" y="256" fill="#1e3a8a">messages_jev_*</text>
+      <rect x="886" y="286" width="220" height="42" rx="10" fill="#ccfbf1"/><text x="904" y="312" fill="#115e59">department</text>
+      <rect x="886" y="342" width="220" height="42" rx="10" fill="#ede9fe"/><text x="904" y="368" fill="#5b21b6">urgency</text>
+      <rect x="886" y="398" width="220" height="42" rx="10" fill="#e0e7ff"/><text x="904" y="424" fill="#3730a3">requires_human</text>
+    </g>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="850" y="520" width="292" height="82" rx="20" fill="#78350f" stroke="#fbbf24" stroke-width="2"/>
+    <text x="886" y="553" fill="#fef3c7" font-family="Inter,Arial,sans-serif" font-size="17" font-weight="700">Dead-letter topic</text>
+    <text x="886" y="579" fill="#fde68a" font-family="ui-monospace,monospace" font-size="15">messages_jev_dlq</text>
+  </g>
+
+  <path d="M225 318H276" stroke="#67e8f9" stroke-width="5" marker-end="url(#arrow)"/>
+  <path d="M460 318H514" stroke="#67e8f9" stroke-width="5" marker-end="url(#arrow)"/>
+  <path d="M648 218V186" stroke="#a5b4fc" stroke-width="4" marker-end="url(#arrow)"/>
+  <path d="M676 182V214" stroke="#a5b4fc" stroke-width="4" marker-end="url(#arrow)"/>
+  <path d="M776 318H844" stroke="#67e8f9" stroke-width="5" marker-end="url(#arrow)"/>
+  <path d="M734 416C785 468 795 561 844 561" fill="none" stroke="#fbbf24" stroke-width="4" marker-end="url(#arrowAmber)"/>
+</svg>

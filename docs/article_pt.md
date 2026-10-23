@@ -1,5 +1,7 @@
 # Classificando e roteando eventos em tempo real com Kafka Connect e JEV
 
+![Fluxo de eventos entrando em um motor de decisão e sendo distribuídos entre diferentes rotas](images/kafka-jev-hero.png)
+
 Se você já precisou utilizar LLMs em aplicações de tempo real orientadas a eventos, caso de uso principal do Kafka, sabe que esbarramos em algumas dificuldades, a saber: Alta latência, alucinações, formato de saída incerto e custo.
 
 Sim, é verdade que todos estes pontos vêm evoluindo desde então, mas ainda que tecnicamente seja viável, para uma grande parcela de casos usar LLMs com eventos não é a maneira mais eficiente.
@@ -39,44 +41,9 @@ O conector é open source e está disponível no repositório [kafka-jev-connect
 
 ## Como Funciona
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant P as Produtor
-    participant IN as Tópico de entrada
-    participant C as Conector JEV
-    participant J as API TypeSafe JEV
-    participant OUT_A as Tópico de saída A
-    participant OUT_B as Tópico de saída B
-    participant DLQ as Tópico de mensagens com falha (DLQ)
+![Arquitetura do Kafka-JEV-Connector entre o tópico de entrada, a API JEV, os tópicos de saída e a DLQ](images/architecture-overview.svg)
 
-    Note over C,OUT_B: Antes de iniciar, o conector valida o conjunto finito<br/>de tópicos que a política pode selecionar
-    Note over C,OUT_B: output.topic pode ser fixo ou usar uma expressão baseada<br/>em Choice, limiar de Noul ou Score, ou nível de Score
-    P->>IN: Mensagem JSON, por exemplo, um texto para classificar
-    IN->>C: O Kafka Connect entrega o registro
-    C->>C: Monta o estado da avaliação (FULL_VALUE ou TEMPLATE)<br/>e calcula os identificadores da origem e da avaliação
-    C->>J: Envia estado, conjunto de perguntas e modelo
-    alt O JEV retorna as respostas
-        J-->>C: Respostas, modelo resolvido e uso de tokens
-        C->>C: Resolve a política e seleciona exatamente<br/>um tópico de destino
-        alt A política seleciona o tópico A
-            C->>OUT_A: Publica o registro enriquecido
-        else A política seleciona o tópico B
-            C->>OUT_B: Publica o registro enriquecido
-        end
-        Note over C,OUT_B: Uma avaliação gera uma única publicação,<br/>sem distribuição para múltiplos tópicos
-        C->>IN: Confirma o deslocamento
-    else Violação do contrato de roteamento
-        J-->>C: Resposta incompatível com a política de destino
-        Note over C: Interrompe a tarefa, não envia à DLQ e mantém<br/>o deslocamento sem confirmação para permitir nova tentativa
-    else Falha permanente do registro (campo ausente no template ou erro 413)
-        C->>DLQ: Publica um registro de falha sanitizado
-        C->>IN: Confirma o deslocamento
-    else Falha transitória (tempo esgotado, erro 429 ou erro 5xx)
-        C->>J: Tenta novamente com espera progressiva
-        Note over C: Se as tentativas se esgotarem, a tarefa é interrompida<br/>e o deslocamento fica sem confirmação, evitando perda de dados
-    end
-```
+*Visão simplificada do fluxo entre a origem, o modelo e os tópicos de destino.*
 
 ## Mão na massa
 
@@ -216,6 +183,8 @@ Message: My card was charged twice
 
 É uma diferença pequena, mas importante. Não enviamos apenas um JSON. Explicamos o que cada informação representa e escolhemos exatamente quais campos deixam o Kafka.
 
+![Construção do State a partir da chave, dos campos do evento e de um template](images/state-template.svg)
+
 Podemos construir o State a partir de:
 
 | Expressão | Conteúdo |
@@ -277,6 +246,8 @@ Para facilitar a troca entre os exemplos, vamos criar todos os tópicos de uma �
 | Urgência | Valor do Score | `connector-local-router-by-score-value.json` | `messages_jev_urgent`, `messages_jev_normal` |
 | Insatisfação | Nível do Score | `connector-local-router-by-score-level.json` | `messages_jev_dissatisfaction_0`, `messages_jev_dissatisfaction_1`, `messages_jev_dissatisfaction_2`, `messages_jev_dissatisfaction_3` |
 | Falhas | Todos | Todos | `messages_jev_dlq` |
+
+![Comparação entre tópico fixo, roteamento por Choice, condição e nível de Score](images/routing-policies.svg)
 
 Com todos eles disponíveis, podemos trocar somente o arquivo do conector sem precisar recriar a infraestrutura de tópicos.
 
@@ -419,6 +390,8 @@ Com isto tivemos 4.000 mensagens de entrada e 20.000 registros enriquecidos, sen
 
 Todas as avaliações utilizaram o modelo resolvido `jev-1.14.0`.
 
+![Resumo da execução com avaliações, latência, custo, DLQ e distribuições de roteamento](images/execution-results.svg)
+
 Os resultados completos estão em [`docs/results.txt`](results.txt) e podem ser gerados novamente com:
 
 ```bash
@@ -499,4 +472,6 @@ Estes números não dizem apenas para onde os eventos foram. Eles também ajudam
 
 ## Conclusões
 
-Minha intenção ao criar este conector era abrir caminho para um novo jeito de usar os modelos. Após entender o que é possível com o JEV e outros modelos semelhantes, ficou claro para mim que sua combinação com o Kafka era o cenário perfeito para destravar uma série de casos de uso que, com LLMs, são ou lentos ou caros para rodar em escala.
+Minha intenção ao criar este conector era abrir caminho para um novo jeito de usar os modelos. Após entender o que é possível com o JEV e outros modelos semelhantes, era evidente para mim que sua combinação com o Kafka era o cenário perfeito para destravar uma série de casos de uso que, com LLMs, são ou lentos ou caros para rodar em escala.
+
+Se usar o conector, star the repo!

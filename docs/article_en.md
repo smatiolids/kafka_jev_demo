@@ -1,8 +1,8 @@
 # Classifying and Routing Real-Time Events with Kafka Connect and JEV
 
-ChatGPT was announced in 2022, ushering in the era of LLMs and Generative AI as mainstream technologies accessible to all kinds of users, businesses, and use cases.
+![Events flowing into a decision engine and being distributed across different routes](images/kafka-jev-hero.png)
 
-However, using LLMs in real-time, event-driven applications—a primary use case for Kafka—presents several challenges: high latency, hallucinations, unpredictable output formats, and cost.
+If you have ever tried using LLMs in real-time, event-driven applications—a primary use case for Kafka—you know that we run into several challenges: high latency, hallucinations, unpredictable output formats, and cost.
 
 It is true that all these areas have improved since then. Still, even when technically feasible, using LLMs with events is not the most efficient approach for a large share of use cases.
 
@@ -12,12 +12,15 @@ We may eventually generate a customer response, create a ticket, or perform anot
 
 Automating these seemingly small decisions is what enables organizations to scale business processes, improve customer experience, and optimize effort.
 
+When JEV emerged as a decision model with lower latency and cost, I saw the ideal complement for expanding what we can do with Kafka and Generative AI. That is why I created a connector that integrates these technologies.
+
 In this article, we will:
 
 - Consume support tickets from a Kafka topic.
 - Classify them with JEV.
 - Enrich each event with the decisions.
 - Route them to different topics.
+- Understand the resulting cost and latency.
 
 ## JEV
 
@@ -32,52 +35,17 @@ With these attributes, especially its low cost and latency, JEV becomes a strong
 
 ## Kafka-JEV-Connector
 
-The connector is open source and available in the [kafka-jev-connector](https://github.com/smatiolids/kafka-jev-connector) repository.
-
 Straight to the point, Kafka-JEV-Connector consumes messages from selected topics, builds context from their payloads, and submits it to JEV.
 
-The connector publishes the result to an output topic or to a DLQ when a permanent record failure occurs. JEV can also determine the output topic, effectively acting as a message router.
+The result is then sent to output topics or to a DLQ in case of failures. The destination can be fixed or determined by JEV itself, meaning that JEV can act as a message router.
+
+The connector is open source and available in the [kafka-jev-connector](https://github.com/smatiolids/kafka-jev-connector) repository.
 
 ## How It Works
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant P as Producer
-    participant IN as Input topic
-    participant C as JEV Connector
-    participant J as TypeSafe JEV API
-    participant OUT_A as Output topic A
-    participant OUT_B as Output topic B
-    participant DLQ as Dead-letter topic (DLQ)
+![Kafka-JEV-Connector architecture between the input topic, JEV API, output topics, and DLQ](images/architecture-overview.svg)
 
-    Note over C,OUT_B: Before startup, the connector validates the finite set<br/>of topics that the policy may select
-    Note over C,OUT_B: output.topic may be fixed or use an expression based on<br/>Choice, a Noul or Score threshold, or a Score level
-    P->>IN: JSON message, such as text to classify
-    IN->>C: Kafka Connect delivers the record
-    C->>C: Builds Evaluation State (FULL_VALUE or TEMPLATE)<br/>and calculates source and evaluation identifiers
-    C->>J: Sends state, Question Set, and model
-    alt JEV returns answers
-        J-->>C: Answers, resolved model, and token usage
-        C->>C: Resolves the policy and selects exactly<br/>one destination topic
-        alt The policy selects topic A
-            C->>OUT_A: Publishes the Enriched Record
-        else The policy selects topic B
-            C->>OUT_B: Publishes the Enriched Record
-        end
-        Note over C,OUT_B: One evaluation produces one publication,<br/>with no fan-out to multiple topics
-        C->>IN: Commits the offset
-    else Routing contract violation
-        J-->>C: Response incompatible with the destination policy
-        Note over C: Stops the task, does not send to the DLQ, and leaves<br/>the offset uncommitted so the record can be retried
-    else Permanent record failure (missing template field or HTTP 413)
-        C->>DLQ: Publishes a sanitized failure record
-        C->>IN: Commits the offset
-    else Transient failure (timeout, HTTP 429, or HTTP 5xx)
-        C->>J: Retries with progressive backoff
-        Note over C: If retries are exhausted, the task stops and the<br/>offset remains uncommitted, preventing data loss
-    end
-```
+*A simplified view of the flow between the source, the model, and the destination topics.*
 
 ## Hands On
 
@@ -85,7 +53,7 @@ Now that we know what the connector does, let's put it to work.
 
 The complete scenario, including configuration files, the local environment, and all supporting scripts, is available in the [kafka_jev_demo](https://github.com/smatiolids/kafka_jev_demo) repository.
 
-In this example, we will read support tickets from the `messages` topic, send them to JEV, and publish the results to one or more topics prefixed with `messages_jev`.
+In this example, we will read support-ticket data from a CSV file and send it to the `messages` topic. The connector sends each ticket to JEV and publishes the result to one or more topics prefixed with `messages_jev`.
 
 Before doing that, we need to define two things: Which questions do we want to ask, and which event data should be used to answer them?
 
@@ -109,8 +77,6 @@ We use three question types to answer them: `noul`, `choice`, and `score`.
 #### Noul
 
 The `noul` type represents a decision between true and false, but it returns a continuous value between `0` and `1`.
-
-The closer the value is to `1`, the more closely the content matches the true criterion. The closer it is to `0`, the more closely it matches the false criterion.
 
 ```json
 "requires_human": {
@@ -147,7 +113,7 @@ The `billing`, `technical_support`, and other keys are part of the contract. Lat
 
 #### Score
 
-Finally, the `score` type places the event on an ordered scale.
+Finally, the `score` type places the event on an ordered scale. Be careful: The order matters!
 
 ```json
 "urgency": {
@@ -170,31 +136,15 @@ This difference will matter when we configure routing. We can use the level defi
 
 Kafka Connect receives configuration properties as simple values. Therefore, the questions object must be serialized and included in `jev.questions`.
 
-To avoid doing this by hand, the project includes the following script:
+To make the questions easier to edit, define your Question Set in `questions.json`, then run `set_questions.py` to update `config/connector.json`:
 
 ```bash
 python3 config/set_questions.py
 ```
 
-It reads `questions.json` and updates `jev.questions` in `config/connector.json`.
-
-The `connector-local*.json` files already contain the same version of the questions. If you change `questions.json`, you must also update the local configuration file you intend to run.
-
-In addition to the questions, we have `question.set.id`:
-
-```json
-{
-  "question.set.id": "message_classification/v1"
-}
-```
-
-It identifies the set used for that evaluation. If a question or criterion changes, we should create a new version, such as `message_classification/v2`.
-
-This allows us to distinguish a result produced by the current questions from one produced by an earlier version.
-
 ### Building the State
 
-Questions define what we want to know. State defines what JEV needs to know to answer.
+If Questions define what we want to know, State defines what JEV needs to know to answer—what we call context in Generative AI.
 
 The connector can build this state in two ways: Send the entire event value or construct text dynamically.
 
@@ -210,9 +160,7 @@ With `FULL_VALUE`, the entire message value is sent to JEV:
 
 This is the simplest option. If the value is an object or list, it is converted to JSON. If it is a string, it is sent as text.
 
-However, we do not always want to send the entire event. It may contain irrelevant fields, sensitive information, or simply fail to give the model enough context.
-
-For these situations, we have `TEMPLATE` mode.
+However, we do not always want to send the entire event. It may contain irrelevant fields, sensitive information, or simply fail to give the model enough context. For these situations, we have `TEMPLATE` mode.
 
 #### Template
 
@@ -237,6 +185,8 @@ Message: My card was charged twice
 
 It is a small but important difference. We are not sending only JSON. We explain what each piece of information represents and choose exactly which fields leave Kafka.
 
+![Building State from the record key, event fields, and a template](images/state-template.svg)
+
 We can build State from:
 
 | Expression | Content |
@@ -259,7 +209,7 @@ Without a default, a missing reference is treated as a permanent failure and the
 
 ### Configuring the Connector
 
-With Questions and State defined, we can configure the rest of the connector.
+With Questions and State defined, we can configure the rest of the connector. Everything you already know about connectors still applies here.
 
 ```json
 {
@@ -279,17 +229,13 @@ With Questions and State defined, we can configure the rest of the connector.
 }
 ```
 
-`topics` defines where events are consumed from. `errors.deadletter.topic` defines the DLQ. Despite its name, `output.topic` defines the entire routing policy.
-
-This is where things get interesting.
+Focusing on properties specific to this connector, `topics` defines where events are consumed from. `errors.deadletter.topic` defines the DLQ. Despite its name, `output.topic` defines the destination of processed messages.
 
 ### Routing the Events
 
-The project contains one `connector-local*.json` file for each routing option. To switch between them, change `CONNECTOR_CONFIG_FILE` in `.env`.
+The demo project contains one `connector-local*.json` file for each routing option. To switch between them, change `CONNECTOR_CONFIG_FILE` in `.env`.
 
-Before looking at the options, there is one important rule: The connector does not create topics.
-
-Every possible destination must exist before startup. Because Questions have finite answers, the connector can calculate and validate these topics in advance.
+One important point: The connector does not create topics. Keep this in mind when using it in your own use cases.
 
 To make it easy to switch between examples, we will create all topics at once. They are divided into the following groups:
 
@@ -302,6 +248,8 @@ To make it easy to switch between examples, we will create all topics at once. T
 | Urgency | Score value | `connector-local-router-by-score-value.json` | `messages_jev_urgent`, `messages_jev_normal` |
 | Dissatisfaction | Score level | `connector-local-router-by-score-level.json` | `messages_jev_dissatisfaction_0`, `messages_jev_dissatisfaction_1`, `messages_jev_dissatisfaction_2`, `messages_jev_dissatisfaction_3` |
 | Failures | All | All | `messages_jev_dlq` |
+
+![Comparison of fixed-topic, Choice, conditional, and Score-level routing](images/routing-policies.svg)
 
 With all of them available, we can switch only the connector configuration file without recreating the topic infrastructure.
 
@@ -444,6 +392,8 @@ This produced 4,000 input messages and 20,000 Enriched Records, with 4,000 for e
 
 Every evaluation used the resolved model `jev-1.14.0`.
 
+![Execution summary with evaluations, latency, cost, DLQ, and routing distributions](images/execution-results.svg)
+
 The complete results are available in [`docs/results.txt`](results.txt) and can be generated again with:
 
 ```bash
@@ -522,10 +472,10 @@ The fixed topic lets us observe the distribution of all six answers across the 4
 
 These numbers tell us more than where the events went. They also help us evaluate whether the Questions and their criteria accurately represent the process we want to automate.
 
-When switching the routing configuration, recreate the container so it mounts the new file:
+## Conclusions
 
-```bash
-docker compose -f compose.kafka.yaml -f compose.yaml up -d --build --wait --force-recreate
-```
+My goal in creating this connector was to open the door to a new way of using models.
 
-This allows us to change the routing logic without writing or deploying a new application. We update the Questions, State, or policy, restart the connector, and the new flow takes effect.
+After understanding what JEV and similar models make possible, it became clear to me that combining them with Kafka was the perfect way to unlock use cases that are either too slow or too expensive to run at scale with LLMs.
+
+If you use the connector, star the repo!
